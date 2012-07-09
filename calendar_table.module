@@ -1,0 +1,345 @@
+<?php
+/**
+ * @file calendar_table.module
+ * TODO: Enter file description here.
+ */
+
+function calendar_table_form_alter(&$form, &$form_state, $form_id) {
+	//dsm($form_id);
+	if ($form_id == 'event_node_form') {
+		
+		$form['#submit'][] = 'fuckoff';
+		dsm ($form);
+	}	
+}
+
+function fuckoff($form, &$form_state) {
+	dsm ($form);
+}
+
+function calendar_table_node_submit($node, $form, &$form_state) {
+	dsm($form_state);
+}
+
+/**
+ * Implements hook_menu().
+ */
+function calendar_table_menu() { 
+  // This is the minimum information you can provide for a menu item.
+  $items['calendar'] = array(
+    'title' => 'Calendar of events',
+    'page callback' => 'calendar_table_calendar_page',
+    'access arguments' => array('view calendar with published events'),
+  );
+  $items['ajax-calendar'] = array (
+  	'page callback' => 'ajax_calendar_request',
+  	'access callback' => 'user_access',
+  	'access arguments' => array('access content'),
+  	'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+function ajax_calendar_request($type = 'ajax', $year, $month) {
+	//$set_time = mktime(0, 0, 0, $month, 1, $year);
+	$output = _ajax_calendar_table_get_month_table($year, $month);
+	$output = render($output);
+	if ($type == 'ajax') {
+		$commands = array();
+		$commands[] = ajax_command_replace('#content', '<div id="content">'.$output.'</div>');
+		$page = array(
+			'#type' => 'ajax',
+			'#commands' => $commands,
+		);
+		ajax_deliver($page);
+	} else {
+		$output = '<div id="content">'.$output.'</div>';
+		return $output;
+	}
+}
+
+function _ajax_calendar_table_get_month_table($year, $month) {
+	//$set_time = mktime(0,0,0,$month,1,$year);
+	//$event_array = calendar_table_get_month_events($set_time);
+	//$variables = calendar_table_get_variables($set_time, $event_array);
+	return calendar_table_calendar_page($year, $month);
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function calendar_table_block_info() {
+  $blocks['calendar_table_block'] = array(
+    'info' => t('Calendar table block'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function calendar_table_block_view($delta = '') {
+  $block = array();
+
+  switch ($delta) {
+    case 'calendar_table_block':
+      $block['subject'] = t('Calendar of events');
+      $block['content'] = calendar_table_content();
+      break;
+  }
+  return $block;
+}
+
+function calendar_table_permission() {
+	$items = array(
+		'view calendar with published events' => array(
+		  'title' => t('View calendar with published events'), 
+		  'description' => t('User may view published upcomming events on the calendar page.'),
+		),
+		'admin calendar table' => array(
+		  'title' => t('Administer Calendar Table'), 
+		  'description' => t('Perform administration tasks for Calendar Table.'),
+		),
+	);
+	return $items;
+}
+
+/**
+ *
+ * The main calendar page
+ *
+ */
+function calendar_table_calendar_page($year = NULL, $month = NULL) {
+	drupal_add_css(drupal_get_path('module', 'calendar_table') . "/css/calendar-table.css");
+	if($year == 'index.php' || $year == NULL) {
+		$year = date('Y');
+		$month = date('m');
+	}
+	if($month > 12 || $month < 0) $month = date('m');
+	if($year < (date('Y') - 5) || $year > (date('Y') + 5)) $year = date('Y');
+	$set_time = mktime(0,0,0,$month,1,$year);
+	$event_array = calendar_table_get_month_events($set_time);
+	$variables = calendar_table_get_variables($set_time, $event_array);
+	//calendar_table_next_prev_month($set_time);
+	return calendar_table_month_content($variables);
+}
+
+function calendar_table_next_prev_month($set_time, $base_path = 'calendar', $nextprev, $html) {
+	($nextprev == 'next')? $next_month_time = strtotime('+1 month', $set_time) : $next_month_time = strtotime('-1 month', $set_time);		
+	$month_path = $base_path.'/nojs/'.date('Y', $next_month_time).'/'.date('m', $next_month_time);	
+	$render_array = array(
+		'#prefix' => '<div class="calendar-table-button '.$nextprev.'">',
+		'#suffix' => '</div>',
+		'#type' => 'markup',
+		'#markup' => l($html, $month_path, array('attributes' => array('class' => 'use-ajax'))),
+	);			
+	return $render_array;
+}
+
+function calendar_table_month_content($variables) {
+	$render_array = array(
+		'calendar_content' => array(
+		'#prefix' => '<div id="calendar-table">',
+		'#suffix'=> '</div>',
+		array(
+			'calendar_header' => array(
+				array(
+					calendar_table_next_prev_month($variables['set_time'], 'ajax-calendar', 'prev', '<<prev'),
+				),
+				array (
+					'#type' => 'markup',
+					'#markup' => $variables['this_month_name'].', '.$variables['this_year'],
+					'#prefix' => '<h2 class="calendar-table-month-title">',
+					'#suffix' => '</h2>',
+					),
+				array(
+					calendar_table_next_prev_month($variables['set_time'], 'ajax-calendar', 'next', 'next>>'),
+					),
+				),	
+			),
+		array(
+			'calendar_table' => calendar_table_render_month_table($variables),
+		)
+	),
+	);
+// 	$render_array = array (	
+// 		'#prefix' => '<div id="calendar-table">',
+// 		'#suffix'=> '</div>',
+// 		'calendar_table' => calendar_table_render_month_table($variables),
+// );
+	return $render_array;
+	
+}
+
+function calendar_table_render_month_table($variables) {
+	$calendar_rows = array();
+	$week_row = array();
+	$day_count=1;
+	$day_cell_array = array();
+	for($i=$variables['start'];$i <= $variables['stop'];$i++) {
+		switch(true) {
+			case $i < 1:
+				$cell_date = $variables['days_in_last_month'] + $i;
+				$attributes = array('class' => 'prev-month calendar-table-td');
+				break;
+			case $i >= 1 && $i <= $variables['days_in_this_month']:
+				$cell_date = $i;
+				$attributes = array('class' => 'this-month calendar-table-td');
+			break;
+			case $i > $variables['days_in_this_month']:
+				$cell_date = $i - $variables['days_in_this_month'];
+				$attributes = array('class' => 'next-month calendar-table-td');
+				break;
+		}
+		$day_cell_array[] = array(
+			'#type' => 'markup',
+			'#markup' => $cell_date,
+			'#prefix' => '<h3 class="calendar-table-day-title">',
+			'#suffix' => '</h3>',
+		);
+		// this will only allow event from the current month
+		$ordinal_suffix = calendar_table_get_ordinal_suffix($cell_date);
+		if(isset($variables['event_array']['y_'.$variables['this_year']][$variables['this_month_name']][$cell_date.'_'.calendar_table_get_ordinal_suffix($cell_date)])) {
+			$attributes[] = 'events';
+			$day_cell_array[] = array(
+			'#theme' => 'item_list',
+			'#items' => $variables['event_array']['y_'.$variables['this_year']][$variables['this_month_name']][$cell_date.'_'.calendar_table_get_ordinal_suffix($cell_date)],
+			);
+		}
+		if(empty($attributes) == TRUE) {
+			$week_row[] = array (
+				'data' => $day_cell_array,
+			);
+		} else {
+			$week_row[] = array (
+				'data' => $day_cell_array,
+				'class' => $attributes,
+			);
+		}
+		
+		$day_cell_array = array();
+		
+		if($day_count % 7 ==  0) {
+			$calendar_rows[] = $week_row;
+			$week_row = array();	
+		}		
+		$day_count++;
+	}
+	//$weekdays = array(t('Monday'),t('Tuesday'),t('Wednesday'),t('Thursday'),t('Friday'),t('Saturday'),t('Sunday'));
+	$weekdays = array(
+		'Mon<span>day</span>',
+		'Tue<span>sday</span>',
+		'Wed<span>nesday</span>',
+		'Thu<span>rsday</span>',
+		'Fri<span>day</span>',
+		'Sat<span>urday</span>',
+		'Sun<span>day</span>'
+		);
+		
+	$render_array = array(
+		'#theme' => 'table',
+		'#attributes' => array ('class' => array ('calendarx')),
+		'#rows' => $calendar_rows,
+		'#header' => $weekdays,				
+	);
+	return $render_array;
+}
+
+/**
+ * Render a calendar table realtive to the time given in the first param
+ *
+ * @param $set_time - the relative time to base the clalendar rendering
+ * @param $event_array - an array of event to include in the calendar
+ *
+ */
+function calendar_table_get_variables($set_time, $event_array) {
+   	$this_month = date('m', $set_time);
+	$last_month = date('m', strToTime('last month', $set_time));
+	$next_month = date('m', strToTime('next month', $set_time));
+	$last_month_year = date('Y', strToTime('last month', $set_time));
+	$next_month_year = date('Y', strToTime('next month', $set_time));
+	$this_year = date('Y', $set_time);
+	$days_in_this_month = cal_days_in_month(CAL_GREGORIAN, $this_month, $this_year);
+	$days_in_last_month = cal_days_in_month(CAL_GREGORIAN, $last_month, $last_month_year);
+	$days_in_next_month = cal_days_in_month(CAL_GREGORIAN, $next_month, $next_month_year);
+	
+	$first_day_num = date('N', mktime(0, 0, 0, date('m', $set_time), 1, $this_year));
+	
+	$last_day_num = date('N', mktime(0, 0, 0, date('m', $set_time), $days_in_this_month, $this_year));
+	
+	$manhole = date('N');//, $set_time).' 1, '.$this_year;
+	
+	$variables = array (
+		'set_time' => $set_time,
+		'this_month_name' => date('F', $set_time),
+		'this_year' => $this_year,
+		'days_in_last_month' => $days_in_last_month,
+		'days_in_this_month' => $days_in_this_month,
+		'days_in_next_month' => $days_in_next_month,
+		'start' => (2 - $first_day_num),
+		'stop' => $days_in_this_month + (7 - $last_day_num),
+		'event_array' => $event_array,
+	);
+	
+	return $variables;
+	
+}
+
+/**
+ * wwt_get_month_events($set_time)
+ * 
+ * Return an array of events from from the month of the
+ * $set_time param supplied
+ *
+ */
+function calendar_table_get_month_events($set_time) {
+	$set_month = date('m', $set_time);
+	$set_year = date('Y', $set_time);
+	$query = db_select('node', 'n');
+	$query->condition('n.status', 1);
+	$query->condition('event_date.deleted', 0);
+	$query->leftjoin('field_data_field_event_date', 'event_date', 'n.nid = event_date.entity_id');
+	$query->condition('event_date.entity_type', 'node');
+	$query->where('EXTRACT(MONTH FROM event_date.field_event_date_value) = :month', array(':month' => $set_month));
+	$query->where('EXTRACT(year FROM event_date.field_event_date_value) = :year', array(':year' => $set_year));
+	$query->fields('n', array('title', 'created', 'nid'));
+	$query->fields('event_date', array('field_event_date_value', 'field_event_date_value2'));
+        $query->orderBy('field_event_date_value', 'ASC');
+	$result = $query->execute();
+	
+	$event_array = array();
+		foreach($result as $row) {
+				$date_to_time = strtotime($row->field_event_date_value);
+                $year = 'y_'.date('Y',$date_to_time);
+                $month = date('F',$date_to_time);
+                //$day = date('l',$date_to_time);
+                $day_num = date('j',$date_to_time);
+                $day_suffix = date('S',$date_to_time);
+                $linked_title = l($row->title,'node/'.$row->nid);
+		$event_array_merge[$year] = array(
+                    $month => array (
+                            $day_num.'_'.$day_suffix => array ( 
+                                $linked_title,
+                            ),
+                    ),
+                );
+        $event_array = array_merge_recursive($event_array, $event_array_merge);
+	}	
+	return $event_array;
+}
+
+function calendar_table_content() {
+	return calendar_table_calendar_page();
+}
+
+function calendar_table_get_ordinal_suffix($number){
+	$ends = array('th','st','nd','rd','th','th','th','th','th','th');
+	if (($number %100) >= 11 && ($number%100) <= 13)
+		return 'th';
+	else
+		return $ends[$number % 10];
+}
+
+

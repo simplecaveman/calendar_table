@@ -1,0 +1,104 @@
+.calendar-table-button {
+	width: 10%;
+}
+
+.calendar-table-button.prev {
+	float: left;
+}
+
+.calendar-table-button.next {
+	float: left;
+}
+
+.calendar-table-month-title {
+	margin: 0;
+	display: block;
+	width: 79%;
+	text-align: center;
+	float: left;
+}
+
+h3.calendar-table-day-title {
+	background: #999;
+	color: #fff;
+	height: 1.2em;
+	width: 1.2em;
+	float: right;
+	text-align: right;
+	line-height: .9em;
+	padding: .2em;
+	margin: 0;
+}
+
+.calendar-table-td {
+	vertical-align:top;
+	padding: 0;
+
+}
+
+ .calendarx { 
+	 width: 100%; 
+	 font-size: 1em;/*12*/ 
+	 line-height: 1.25em;/*15*/
+	 border-collapse: collapse; 
+	 border-spacing: 0; 
+ }
+
+.calendarx th { text-align: left; }
+.calendarx th span { display: none; }
+
+.calendarx tr { display: block; }
+.calendarx td,
+.calendarx th { display: none; }
+
+.calendarx .day { margin: 1em 0 .5em 0; font-weight: bold; }
+
+.calendarx .events { display: block; }
+
+.calendarx ul { display: block; list-style: none; margin: 0 1.25em 0 0;/*15*/ padding: 0; }
+.calendarx li { display: block; position: relative; margin: 0; padding: 0; height: 1.25em;/*15*/ }
+.calendarx li a { display: block; position: absolute; left: 0; right: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;  }
+
+.calendarx tr td:nth-of-type(1n) .day:before { content: 'Monday '; }
+.calendarx tr td:nth-of-type(2n) .day:before { content: 'Tueday '; }
+.calendarx tr td:nth-of-type(3n) .day:before { content: 'Wednesday '; }
+.calendarx tr td:nth-of-type(4n) .day:before { content: 'Thursday '; }
+.calendarx tr td:nth-of-type(5n) .day:before { content: 'Friday '; }
+.calendarx tr td:nth-of-type(6n) .day:before { content: 'Saturday '; }
+.calendarx tr td:nth-of-type(7n) .day:before { content: 'Sunday '; }
+
+.calendarx .prev-month,
+.calendarx .next-month { display: none; }
+
+@media only screen and (min-width: 30em) { /*480*/
+
+
+	.calendarx tr { display: table-row; }
+	.calendarx th, .calendarx td { display: table-cell !important; margin: 0; width: 14.2857%; padding: 0.4166em;/*10*/ border: 1px solid #babcbf; vertical-align: top; }
+
+	.calendarx .prev-month .day,
+	.calendarx .next-month .day { color: #bbb; }
+
+	.calendarx td .day { display: block; float: right; margin: 0; font-weight: normal; }
+	.calendarx td .day:before { display: none; }
+	.calendarx td .suffix { display: none; }
+
+}
+
+@media only screen and (min-width: 40em) { /*640*/
+
+	/* show full days (e.g. "Mon" to "Monday") */
+	.calendarx th span { display: inline; }
+
+}
+
+@media only screen and (min-width: 40em) and (min-height: 20em) {
+
+	.calendarx td { height: 2.5em;/*30*/ }
+
+}
+@media only screen and (min-width: 40em) and (min-height: 40em) {
+
+	.calendarx td { height: 6.25em;/*75*/ }
+
+}

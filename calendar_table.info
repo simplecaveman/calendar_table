@@ -1,0 +1,6 @@
+name = Calendar Table
+description = A light-weight calendar of events module. Designed to be responsive.
+package = Date
+core = 7.x
+files[] = calendar_table.module
+files[] = tests/calendar_table.test

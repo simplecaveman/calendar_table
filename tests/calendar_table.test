@@ -1,0 +1,76 @@
+<?php
+
+/**
+ * @file Tests for the Simple Calendar module.
+ */
+
+/**
+ * Common functionality for all tests
+ */
+class CalendarTableAbstractTest extends DrupalWebTestCase {
+
+  protected $admin_user, $normal_user;
+
+  /**
+   * SimpleTest core method: code run before each and every test method.
+   *
+   */
+  function setUp() {
+    // Always call the setUp() function from the parent class.
+    parent::setUp('calendar_table', 'event_content_type');
+    
+    // Create an admin user
+    $permissions = array('access content', 'create event content', 'edit own event content', 'edit any event content', 'delete own event content', 'delete any event content');
+    $this -> admin_user = $this -> drupalCreateUser($permissions);
+
+    // Log in
+    $this -> drupalLogin($this -> admin_user);
+  }
+
+  /**
+   * SimpleTest core method: code run after each and every test method.
+   *
+   */
+  function tearDown() {
+    // log out
+    $this -> drupalGet(url('logout', array('absolute' => TRUE)));
+
+    // Always call the tearDown() function from the parent class.
+    parent::tearDown();
+  }
+
+}
+
+class CalendarTableCreateEventTest extends CalendarTableAbstractTest {
+
+  public static function getInfo() {
+    return array('name' => t('Simple Calendar Event Creation test'), 'description' => t('Tests that a Simple Calendar Event can be successfully created.'), 'group' => t('Calendar Table'), );
+  }
+
+  /**
+   * Test that we can create an event
+   */
+  public function testCalendarTableEventCreate() {
+    // Create node to edit.
+    
+    $this -> drupalGet('/node/add/event');
+    $this -> assertResponse(200);
+    
+    
+    $edit = array();
+    $edit['title']['und']['value'] = $this -> randomName(8);
+    
+   // $edit['body'] = $this -> randomName(16);
+   // $edit['field_event_date'] = '07/01/2012';
+    // event_time
+    // event_location
+    // event_url
+    
+    
+ 	$this -> drupalPost('/node/add/event', $edit, t('Save'));
+    $this -> assertText(t('Event @title has been created.', array('@title' => $edit['title'])));
+    
+  }
+
+}
+
